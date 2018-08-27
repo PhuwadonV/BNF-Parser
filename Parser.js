@@ -74,15 +74,19 @@ RuleOneOrMore.prototype.internalParse = function*(text, onMatched = this.onMatch
     }while(text !== '');
   }
   else {
+    let success = false
     do{
       for(const result of this.rule.internalParse(text)) {
-        if(result === undefined) break;
-        else {
+        if(result !== undefined) {
+          success = true
+          console.log(5)
           nodes.push(result.matched)
           text = result.rest
           yield new ParsedResult(onMatched(nodes), text)
         }
       }
+      if(!success) break
+      success = false
     }while(text !== '');
   }
 }
