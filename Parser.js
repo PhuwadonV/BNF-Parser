@@ -79,7 +79,6 @@ RuleOneOrMore.prototype.internalParse = function*(text, onMatched = this.onMatch
       for(const result of this.rule.internalParse(text)) {
         if(result !== undefined) {
           success = true
-          console.log(5)
           nodes.push(result.matched)
           text = result.rest
           yield new ParsedResult(onMatched(nodes), text)
@@ -218,7 +217,7 @@ RuleSequence.prototype.internalParse = function*(text, onMatched = this.onMatche
           const nextSequence = Sequence(this.rules.slice(i + 1, this.rules.length))
           for(const nextResult of nextSequence.internalParse(result.rest, onMatched)) {
             if(result === undefined) return
-            else yield new ParsedResult(onMatched(nodes.concat(result.matched.concat(nextResult.matched))), nextResult.rest)
+            else yield new ParsedResult(onMatched(nodes.concat(result.matched).concat(nextResult.matched)), nextResult.rest)
           }
         }
       }
