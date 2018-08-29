@@ -142,3 +142,5 @@ function fold(reducer, initialValue) {
     matched.reduce(reducer, initialValue) :
     matched
 }
+
+const foldStr = fold((a, c) => a + c, '')
