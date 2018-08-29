@@ -1,230 +1,149 @@
-function identity(x) { return x }
+// API
+function OneOf(rule, onMatched) {
+  return new OneOfClass(rule, onMatched)
+}
 
-function ParsedResult(matched, rest) {
+function Sequence(rule, onMatched) {
+  return new SequenceClass(rule, onMatched)
+}
+
+function Option(rule, onMatched) {
+  return new OptionClass(rule, onMatched)
+}
+
+function ZeroOrMore(rule, onMatched) {
+  return new ZeroOrMoreClass(rule, onMatched)
+}
+
+function OneOrMore(rule, onMatched) {
+  return new OneOrMoreClass(rule, onMatched)
+}
+
+// Implement
+function MatchedPrefix(matched, rest) {
   this.matched = matched
   this.rest = rest
 }
 
-function parseTerminal(text, terminal) {
-  if(text.substring(0, terminal.length) === terminal)
-    return new ParsedResult(terminal, text.substring(terminal.length))
-  return undefined
-}
-
-function parseFromGenerator(text, onMatched = this.onMatched) {
-  for(const result of this.internalParse(text, onMatched)) if(result.rest.length === 0) return result.matched
-  return undefined
-}
-
-// RuleTerminal
-
-function RuleTerminals(terminals) {
-  this.terminals = terminals
-}
-
-function Terminals(terminals) {
-  return new RuleTerminals(terminals)
-}
-
-RuleTerminals.prototype.isTerminals = true
-
-RuleTerminals.prototype.internalParse = function(text) {
-  for(const terminal of this.terminals)
-  	if(text.substring(0, terminal.length) === terminal) 
-      return new ParsedResult(terminal, text.substring(terminal.length))
-  return undefined
-}
-
-RuleTerminals.prototype.parse = RuleTerminals.prototype.internalParse
-
-// RuleOneOrMore
-
-function RuleOneOrMore(rule, onMatched) {
+function OneOfClass(rule, onMatched) {
   this.rule = rule
-  this.onMatched = onMatched
+  if(onMatched !== undefined) this.onMatched = onMatched
 }
 
-function OneOrMore(terminals, onMatched = identity) {
-  return new RuleOneOrMore(terminals, onMatched)
+function SequenceClass(rule, onMatched) {
+  OneOfClass.call(this, rule, onMatched)
 }
 
-RuleOneOrMore.prototype.isTerminals = false
-
-RuleOneOrMore.prototype.internalParse = function*(text, onMatched = this.onMatched, nodes = []) {
-  if(typeof this.rule === 'string' || this.rule instanceof String) {
-    do{
-      const result = parseTerminal(text, rule)
-      if(result === undefined) break;
-      else {
-        nodes.push(result.matched)
-        text = result.rest
-        yield new ParsedResult(onMatched(nodes), text)
-      }
-    }while(text !== '');
-  }
-  else if(this.rule.isTerminals) {
-    do{
-      const result = this.rule.internalParse(text)
-      if(result === undefined) break;
-      else {
-        nodes.push(result.matched)
-        text = result.rest
-        yield new ParsedResult(onMatched(nodes), text)
-      }
-    }while(text !== '');
-  }
-  else {
-    let success = false
-    do{
-      for(const result of this.rule.internalParse(text)) {
-        if(result !== undefined) {
-          success = true
-          nodes.push(result.matched)
-          text = result.rest
-          yield new ParsedResult(onMatched(nodes), text)
-        }
-      }
-      if(!success) break
-      success = false
-    }while(text !== '');
-  }
+function OptionClass(rule, onMatched) {
+  OneOfClass.call(this, rule, onMatched)
 }
 
-RuleOneOrMore.prototype.parse = parseFromGenerator
-
-// RuleZeroOrMore
-
-function RuleZeroOrMore(rule, onMatched) {
-  this.rule = rule
-  this.onMatched = onMatched
+function ZeroOrMoreClass(rule, onMatched) {
+  OneOfClass.call(this, rule, onMatched)
 }
 
-function ZeroOrMore(terminals, onMatched = identity) {
-  return new RuleZeroOrMore(terminals, onMatched)
+function OneOrMoreClass(rule, onMatched) {
+  OneOfClass.call(this, rule, onMatched)
 }
 
-RuleZeroOrMore.prototype.isTerminals = false
-
-RuleZeroOrMore.prototype.internalParse = function*(text, onMatched = this.onMatched) {
-  const nodes = []
-  yield new ParsedResult(onMatched(nodes), text)
-  for(const result of RuleOneOrMore.prototype.internalParse.call(this, text, onMatched, nodes)) yield result
+OneOfClass.prototype.onMatchedFx = function(matched, ...args) {
+  return this.onMatched === undefined ? matched : this.onMatched(matched, ...args)
 }
 
-RuleZeroOrMore.prototype.parse = parseFromGenerator
-
-// RuleOption
-
-function RuleOption(rule, onMatched) {
-  this.rule = rule
-  this.onMatched = onMatched
+OneOfClass.prototype.parse = function(text) {
+  for(const result of this.parsePrefix(text)) if(result.rest.length === 0) return result.matched
 }
 
-function Option(terminals, onMatched = identity) {
-  return new RuleOption(terminals, onMatched)
-}
+SequenceClass.prototype.onMatchedFx   = OneOfClass.prototype.onMatchedFx
+OptionClass.prototype.onMatchedFx     = OneOfClass.prototype.onMatchedFx
+ZeroOrMoreClass.prototype.onMatchedFx = OneOfClass.prototype.onMatchedFx
+OneOrMoreClass.prototype.onMatchedFx  = OneOfClass.prototype.onMatchedFx
+SequenceClass.prototype.parse         = OneOfClass.prototype.parse
+OptionClass.prototype.parse           = OneOfClass.prototype.parse
+ZeroOrMoreClass.prototype.parse       = OneOfClass.prototype.parse
+OneOrMoreClass.prototype.parse        = OneOfClass.prototype.parse
 
-RuleOption.prototype.isTerminals = false
-
-RuleOption.prototype.internalParse = function*(text, onMatched = this.onMatched) {
-  yield new ParsedResult(onMatched([]), text)
-  if(typeof this.rule === 'string' || this.rule instanceof String) {
-    const result = parseTerminal(text, this.rule)
-    if(result !== undefined) yield new ParsedResult(onMatched(result.matched), result.rest)
-  }
-  else if(this.rule.isTerminals) {
-    const result = this.rule.internalParse(text)
-    if(result !== undefined) yield new ParsedResult(onMatched(result.matched), result.rest)
-  }
-  else {
-    for( const result of this.rule.internalParse(text))
-      if(result !== undefined) yield new ParsedResult(onMatched(result.matched), result.rest)
-  }
-}
-
-RuleOption.prototype.parse = parseFromGenerator
-
-// RuleMultiple
-
-function RuleMultiple(rules, onMatched) {
-  this.rules = rules
-  this.onMatched = onMatched
-}
-
-function Multiple(terminals, onMatched = identity) {
-  return new RuleMultiple(terminals, onMatched)
-}
-
-RuleMultiple.prototype.isTerminals = false
-
-RuleMultiple.prototype.internalParse = function*(text, onMatched = this.onMatched) {
-   for(const rule of this.rules) {
-     if(typeof rule === 'string' || rule instanceof String) {
-       const result = parseTerminal(text, rule)
-       if(result !== undefined) yield new ParsedResult(onMatched(result.matched), result.rest)
-     }
-     else if(rule.isTerminals) {
-       const result = rule.internalParse(text)
-       if(result !== undefined) yield new ParsedResult(onMatched(result.matched), result.rest)
-     }
-     else {
-       for(const result of rule.internalParse(text))
-         if(result !== undefined) yield new ParsedResult(onMatched(result.matched), result.rest)
-     }
-   }
-}
-
-RuleMultiple.prototype.parse = parseFromGenerator
-
-// RuleSequence
-
-function RuleSequence(rules, onMatched) {
-  this.rules = rules
-  this.onMatched = onMatched
-}
-
-function Sequence(terminals, onMatched = identity) {
-  return new RuleSequence(terminals, onMatched)
-}
-
-RuleSequence.prototype.isTerminals = false
-
-RuleSequence.prototype.internalParse = function*(text, onMatched = this.onMatched) {
-  const nodes = []
-  let i = 0
-  for(const rule of this.rules) {
+OneOfClass.prototype.parsePrefix = function*(text) {
+  for(const rule of this.rule) {
     if(typeof rule === 'string' || rule instanceof String) {
-      const result = parseTerminal(text, rule)
-      if(result === undefined) return
-      else {
-        nodes.push(result.matched)
-        text = result.rest
-      }
-    }
-    else if(rule.isTerminals) {
-      const result = rule.internalParse(text)
-      if(result === undefined) return
-      else {
-        nodes.push(result.matched)
-        text = result.rest
-      }
+      if(text.substring(0, rule.length) === rule)
+        yield new MatchedPrefix(this.onMatchedFx(rule), text.substring(rule.length))
     }
     else {
-      for(const result of rule.internalParse(text)) {
-        if(result === undefined) return
-        else {
-          yield new ParsedResult(onMatched(nodes.concat(result.matched)), result.rest)
-          const nextSequence = Sequence(this.rules.slice(i + 1, this.rules.length))
-          for(const nextResult of nextSequence.internalParse(result.rest, onMatched)) {
-            if(result === undefined) return
-            else yield new ParsedResult(onMatched(nodes.concat(result.matched).concat(nextResult.matched)), nextResult.rest)
-          }
-        }
-      }
+      for(const result of rule.parsePrefix(text))
+        yield new MatchedPrefix(this.onMatchedFx(result.matched), result.rest)
     }
-    i++
   }
-  yield new ParsedResult(onMatched(nodes), text)
 }
 
-RuleSequence.prototype.parse = parseFromGenerator
+OptionClass.prototype.parsePrefix = function*(text) {
+  yield new MatchedPrefix([], text)
+  if(typeof this.rule === 'string' || this.rule instanceof String) {
+    if(text.substring(0, this.rule.length) === this.rule)
+      yield new MatchedPrefix(this.onMatchedFx(this.rule), text.substring(this.rule.length))
+  }
+  else {
+    for(const result of this.rule.parsePrefix(text))
+      yield new MatchedPrefix(this.onMatchedFx(result.matched), result.rest)
+  }
+}
+
+SequenceClass.prototype.parsePrefix = function*(text, nodes = [], index = 0) {
+  for(let i = index; i < this.rule.length; i++) {
+    const rule = this.rule[i]
+    if(typeof rule === 'string' || rule instanceof String) {
+      if(text.substring(0, rule.length) === rule) {
+        nodes.push(rule)
+        text = text.substring(rule.length)
+      }
+      else return
+    }
+    else {
+      for(const result of rule.parsePrefix(text)) {
+        for(const nextResult of this.parsePrefix(result.rest, nodes.concat(result.matched), i + 1))
+          yield new MatchedPrefix(this.onMatchedFx(nextResult.matched), nextResult.rest)
+      }
+      return
+    }
+  }
+  yield new MatchedPrefix(this.onMatchedFx(nodes), text)
+}
+
+OneOrMoreClass.prototype.parsePrefix = function*(text, nodes = []) {
+  if(typeof this.rule === 'string' || this.rule instanceof String) {
+    while(text.length !== 0 && text.substring(0, this.rule.length) === this.rule) {
+      nodes.push(this.rule)
+      text = text.substring(this.rule.length)
+      yield new MatchedPrefix(this.onMatchedFx(nodes), text)
+    }
+  }
+  else {
+    for(const result of this.rule.parsePrefix(text)) {
+      const buff = nodes.concat(result.matched)
+      yield new MatchedPrefix(this.onMatchedFx(buff), result.rest)
+      for(const nextResult of this.parsePrefix(result.rest, buff))
+        yield new MatchedPrefix(this.onMatchedFx(nextResult.matched), nextResult.rest)
+    }
+  }
+}
+
+ZeroOrMoreClass.prototype.parsePrefix = function*(text, nodes) {
+  if(nodes === undefined) {
+    const nodes = []
+    yield new MatchedPrefix(nodes, text)
+    for(const result of OneOrMoreClass.prototype.parsePrefix.call(this, text, nodes)) yield result
+  }
+  else for(const result of OneOrMoreClass.prototype.parsePrefix.call(this, text, nodes)) yield result
+}
+
+const whitespace = OneOf([' ', '\n', '\t'])
+const whitespaces = OneOrMore(whitespace, _ => '\n')
+const digit = OneOf(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'])
+const alphabet = OneOf(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'h', 'k', 'l', 'm',
+                            'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'c', 'w', 'x', 'y', 'z',
+                            'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+                            'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'])
+const text = OneOrMore(OneOf([digit, alphabet, whitespace]))
+function parse() {
+  output.value = JSON.stringify(text.parse(input.value))
+}
