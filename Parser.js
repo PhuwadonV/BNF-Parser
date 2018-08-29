@@ -135,15 +135,3 @@ ZeroOrMoreClass.prototype.parsePrefix = function*(text, nodes) {
   }
   else for(const result of OneOrMoreClass.prototype.parsePrefix.call(this, text, nodes)) yield result
 }
-
-const whitespace = OneOf([' ', '\n', '\t'])
-const whitespaces = OneOrMore(whitespace, _ => '\n')
-const digit = OneOf(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'])
-const alphabet = OneOf(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'h', 'k', 'l', 'm',
-                            'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'c', 'w', 'x', 'y', 'z',
-                            'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
-                            'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'])
-const text = OneOrMore(OneOf([digit, alphabet, whitespace]))
-function parse() {
-  output.value = JSON.stringify(text.parse(input.value))
-}
