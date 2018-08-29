@@ -135,3 +135,10 @@ ZeroOrMoreClass.prototype.parsePrefix = function*(text, nodes) {
   }
   else for(const result of OneOrMoreClass.prototype.parsePrefix.call(this, text, nodes)) yield result
 }
+
+// Helper
+function fold(reducer, initialValue) {
+  return (matched) => matched.reduce !== undefined ? 
+    matched.reduce(reducer, initialValue) :
+    matched
+}
