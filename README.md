@@ -1,4 +1,5 @@
 # Parser
+[JsFiddle](https://jsfiddle.net/PhuwadonV/b5gfqyox/)
 ```js
 const whitespace   = OneOf([' ', '\n', '\t'])
 const whitespaces  = OneOrMore(whitespace, _ => '')
